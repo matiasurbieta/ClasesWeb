@@ -1,5 +1,8 @@
 # Todo app: adding the logic step by step
 
+> **Branch note:** `main` already contains the result of every step below (`src/lib/todos.ts` and the final
+> `src/app/page.tsx`). To follow the guide yourself start from the `initial` branch: `git checkout initial`.
+
 The project ships the **UI only**. Nothing is stored and nothing happens when you submit the form.
 This guide adds, in order: an in-memory array of todos, the state that shows them, creation, toggling
 and editing.
