@@ -1,5 +1,8 @@
 # Keeping the frontend in sync with the backend: generating the API client from OpenAPI
 
+> **Branch note:** `full-api` already has step 7 applied (`src/app/page.tsx` talks to the backend and
+> `src/lib/todos.ts` is gone). `full-apps` has steps 1 to 4 applied and the page still on the in-memory array.
+
 The backend publishes its contract as an OpenAPI document: `../backend/openapi.json`, also served live at
 <http://localhost:3001/api-json>. Instead of hand-writing request and response types in the frontend, we
 generate them from that document. When the backend changes, we regenerate, and TypeScript then points at

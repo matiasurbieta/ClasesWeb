@@ -1,16 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TodoForm } from "@/components/todo-form";
 import { TodoList } from "@/components/todo-list";
 import { Button } from "@/components/ui/button";
+import { api, type ApiTodo } from "@/lib/api";
 import type { Todo, TodoInput } from "@/lib/todo";
-import { initialTodos } from "@/lib/todos";
+
+/** The API returns `_id` and an ISO date-time; the UI wants `id` and "YYYY-MM-DD". */
+function toTodo(t: ApiTodo): Todo {
+  return {
+    id: t._id,
+    name: t.name,
+    description: t.description,
+    priority: t.priority,
+    deadline: t.deadline?.slice(0, 10),
+    done: t.done,
+  };
+}
 
 export default function Home() {
-  const [todos, setTodos] = useState(initialTodos);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Todo>();
+
+  useEffect(() => {
+    api.GET("/todos").then(({ data }) => setTodos((data ?? []).map(toTodo)));
+  }, []);
 
   function openNew() {
     setEditing(undefined);
@@ -22,16 +38,29 @@ export default function Home() {
     setOpen(true);
   }
 
-  function handleSubmit(input: TodoInput) {
+  function replace(updated: ApiTodo) {
+    setTodos((prev) => prev.map((t) => (t.id === updated._id ? toTodo(updated) : t)));
+  }
+
+  async function handleSubmit(input: TodoInput) {
     if (editing) {
-      setTodos((prev) => prev.map((t) => (t.id === editing.id ? { ...t, ...input } : t)));
+      const { data } = await api.PATCH("/todos/{id}", {
+        params: { path: { id: editing.id } },
+        body: input,
+      });
+      if (data) replace(data);
     } else {
-      setTodos((prev) => [...prev, { id: crypto.randomUUID(), ...input }]);
+      const { data } = await api.POST("/todos", { body: input });
+      if (data) setTodos((prev) => [toTodo(data), ...prev]);
     }
   }
 
-  function handleToggle(todo: Todo) {
-    setTodos((prev) => prev.map((t) => (t.id === todo.id ? { ...t, done: !t.done } : t)));
+  async function handleToggle(todo: Todo) {
+    const { data } = await api.PATCH("/todos/{id}", {
+      params: { path: { id: todo.id } },
+      body: { done: !todo.done },
+    });
+    if (data) replace(data);
   }
 
   return (
