@@ -1,6 +1,6 @@
 # Todo app: adding the logic step by step
 
-> **Branch note:** `main` already contains the result of every step below (`src/lib/todos.ts` and the final
+> **Branch note:** `full-apps` (and `main`) already contain the result of every step below (`src/lib/todos.ts` and the final
 > `src/app/page.tsx`). To follow the guide yourself start from the `initial` branch: `git checkout initial`.
 
 The project ships the **UI only**. Nothing is stored and nothing happens when you submit the form.
