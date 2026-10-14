@@ -12,6 +12,7 @@ Teaching project with two apps:
 | `initial` | Starting point: UI components with no state, empty page, complete backend API. | `frontend/TODO-LOGIC.md`, `backend/TODO-API.md` |
 | `full-apps` | The frontend guide applied (todos in an in-memory array, create, toggle, edit) plus the OpenAPI client generation set up. | `frontend/API-CLIENT.md` |
 | `full-api` | The frontend talks to the backend through the generated client, plus a how-to for adding OAuth login to both apps. | `OAUTH.md` |
+| `full-auth0` | `OAUTH.md` applied with Auth0 as the identity provider: login in the frontend, bearer-token verification and per-user todos in the backend. | `AUTH0.md` |
 
 ## Run
 
@@ -22,3 +23,6 @@ cd backend && docker compose up -d && PORT=3001 npm run start:dev
 # frontend (http://localhost:3000)
 cd frontend && npm run dev
 ```
+
+On `full-auth0` both apps also need the Auth0 variables: copy `backend/.env.example` to `backend/.env` and
+`frontend/.env.example` to `frontend/.env.local`, then fill them in as `AUTH0.md` explains.

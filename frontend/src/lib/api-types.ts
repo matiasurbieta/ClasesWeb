@@ -77,6 +77,8 @@ export interface components {
             /** Format: date-time */
             deadline?: string;
             done: boolean;
+            /** @description Auth0 user id (`sub` claim). Set by the server from the token, not by the client. */
+            owner: string;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
