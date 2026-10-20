@@ -1,5 +1,7 @@
 # Enabling OAuth 2.0 / OpenID Connect login in the frontend and the backend
 
+*Versión en español: [OAUTH.es.md](OAUTH.es.md)*
+
 > **Status:** how-to, not applied to the code. Nothing in this branch requires a login yet. The snippets
 > are the starting point for the exercise; follow them in order and the result is a Todo app where each
 > user signs in with Google (or any OpenID Connect provider) and only sees their own todos.

@@ -1,5 +1,7 @@
 # Keeping the frontend in sync with the backend: generating the API client from OpenAPI
 
+*Versión en español: [API-CLIENT.es.md](API-CLIENT.es.md)*
+
 > **Branch note:** `full-api` already has step 7 applied (`src/app/page.tsx` talks to the backend and
 > `src/lib/todos.ts` is gone). `full-apps` has steps 1 to 4 applied and the page still on the in-memory array.
 
