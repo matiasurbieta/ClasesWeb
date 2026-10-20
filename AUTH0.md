@@ -1,5 +1,7 @@
 # Auth0 login in the frontend and the backend
 
+*Versión en español: [AUTH0.es.md](AUTH0.es.md)*
+
 > **Status:** applied in this branch. `OAUTH.md` (branch `full-api`) explains the concepts: roles, the
 > Authorization Code + PKCE flow, Auth.js on the frontend, Passport JWT on the backend. This document is
 > the Auth0-specific setup, what differs from that guide, and what changed in the code.
