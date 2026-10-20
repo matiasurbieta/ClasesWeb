@@ -1,5 +1,7 @@
 # Keeping the frontend in sync with the backend: generating the API client from OpenAPI
 
+*Versión en español: [API-CLIENT.es.md](API-CLIENT.es.md)*
+
 The backend publishes its contract as an OpenAPI document: `../backend/openapi.json`, also served live at
 <http://localhost:3001/api-json>. Instead of hand-writing request and response types in the frontend, we
 generate them from that document. When the backend changes, we regenerate, and TypeScript then points at

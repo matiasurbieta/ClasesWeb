@@ -1,5 +1,7 @@
 # ClasesWeb: a Todo app in Next.js and Nest.js
 
+*Versión en español: [README.es.md](README.es.md)*
+
 Teaching project with two apps:
 
 - `frontend/`: Next.js 16, React 19, shadcn/ui. Entity, list and dialog form for `Todo`.
