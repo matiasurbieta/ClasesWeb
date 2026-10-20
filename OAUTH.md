@@ -88,6 +88,13 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 Auth.js reads `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` by convention, so the provider needs no options.
 
+The `...` values above are placeholders. If you paste this block after running `npx auth secret`, you
+overwrite the generated secret with the literal `...`. Keep one real `AUTH_SECRET` line
+(`openssl rand -base64 33` works too).
+
+Restart `npm run dev` after installing `next-auth`. A dev server started before the install (or before a
+branch switch) can get stuck reloading the page in a loop.
+
 ### 3.2 The Auth.js configuration: `src/auth.ts`
 
 ```ts
@@ -234,17 +241,45 @@ npm i @nestjs/passport passport passport-jwt jwks-rsa
 npm i -D @types/passport-jwt
 ```
 
-Environment variables (for Google):
+Environment variables (for Google), in `backend/.env` (never committed; `backend/.gitignore` already
+excludes it):
 
 ```ini
 OIDC_ISSUER=https://accounts.google.com
 OIDC_AUDIENCE=<the Google client id>
 OIDC_JWKS_URI=https://www.googleapis.com/oauth2/v3/certs
+PORT=3001                                  # Next.js already uses 3000
+MONGO_URI=mongodb://localhost:27017/todos
 ```
 
 For Keycloak: `OIDC_ISSUER=http://localhost:8080/realms/todos`, `OIDC_AUDIENCE=frontend`,
 `OIDC_JWKS_URI=http://localhost:8080/realms/todos/protocol/openid-connect/certs`. Any OIDC provider
 publishes these values at `<issuer>/.well-known/openid-configuration`.
+
+Nest does not read `.env` by itself, but Node can (`process.loadEnvFile()`, Node >= 20.12, no dependency).
+Put the call in its own module, `src/env.ts`:
+
+```ts
+// Loads backend/.env (OIDC_*, PORT, MONGO_URI) if present.
+try {
+  process.loadEnvFile();
+} catch {
+  // no .env: fall back to the variables already in the environment
+}
+```
+
+and import it on the **first line** of `src/main.ts`:
+
+```ts
+import './env.js';
+import { ValidationPipe } from '@nestjs/common';
+// ...the rest unchanged
+```
+
+Why not call `process.loadEnvFile()` inside `main.ts` itself? ES modules run every import before the
+importing file's body. `app.module.ts` reads `MONGO_URI` while it is imported, so a call in the body of
+`main.ts` would run too late and the value from `.env` would be ignored. `loadEnvFile()` reads `.env` from
+the current directory, so start the API from `backend/`.
 
 ### 4.2 Verify tokens: `src/auth/jwt.strategy.ts`
 
@@ -259,14 +294,20 @@ export type AuthUser = { id: string; email?: string };
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
+    const { OIDC_ISSUER, OIDC_AUDIENCE, OIDC_JWKS_URI } = process.env;
+    if (!OIDC_ISSUER || !OIDC_AUDIENCE || !OIDC_JWKS_URI) {
+      throw new Error(
+        'Set OIDC_ISSUER, OIDC_AUDIENCE and OIDC_JWKS_URI (see OAUTH.md)',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       algorithms: ['RS256'],
-      issuer: process.env.OIDC_ISSUER,
-      audience: process.env.OIDC_AUDIENCE,
+      issuer: OIDC_ISSUER,
+      audience: OIDC_AUDIENCE,
       // Fetches the provider's public keys once (cached) and picks the one matching the token's `kid`.
       secretOrKeyProvider: jwksRsa.passportJwtSecret({
-        jwksUri: process.env.OIDC_JWKS_URI!,
+        jwksUri: OIDC_JWKS_URI,
         cache: true,
         rateLimit: true,
       }),
@@ -282,6 +323,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
 No secret is shared between the IdP and the API: verification uses the IdP's public keys, downloaded from
 the JWKS URL. Rotating keys on the IdP side needs no change here.
+
+The check at the top is a security check, not just a nicer error. When `issuer` or `audience` is
+`undefined`, `passport-jwt` silently skips that check, so a forgotten variable would accept a valid Google
+ID token issued to **any other app**. With the check, a missing or unloaded `.env` stops the API at
+startup.
 
 ### 4.3 Require a token everywhere, except where marked public
 
@@ -335,8 +381,31 @@ export class AuthModule {}
 ```
 
 `APP_GUARD` makes the guard global: every route answers `401 Unauthorized` without a valid bearer token.
-Put `@Public()` on `AppController.getHello()` so `GET /` stays open as a health check. Swagger UI (`/api`)
-is served by Express middleware, not by a Nest controller, so the guard does not block it.
+Swagger UI (`/api`) is served by Express middleware, not by a Nest controller, so the guard does not block
+it.
+
+Put `@Public()` on `AppController.getHello()` so `GET /` stays open as a health check,
+in `src/app.controller.ts`:
+
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service.js';
+import { Public } from './auth/public.decorator.js';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Public() // health check stays open
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+}
+```
+
+`@Public()` also works on a class: `@Public() @Controller('docs') export class DocsController {}` opens
+every route of that controller. The guard looks at the handler first, then at the class.
 
 ### 4.4 Scope todos to the signed-in user
 
@@ -378,16 +447,94 @@ async findOne(owner: string, id: string) {
 // update and remove: same change, findOneAndUpdate({ _id: id, owner }, ...) and findOneAndDelete({ _id: id, owner })
 ```
 
-Controller: inject the user.
+Controller: inject the user in all five handlers and pass `user.id` as the first argument. The whole
+`src/todos/todos.controller.ts`, including the Swagger annotation from 4.5:
 
 ```ts
-@Get()
-findAll(@CurrentUser() user: AuthUser): Promise<Todo[]> {
-  return this.todos.findAll(user.id);
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
+import { ParseObjectIdPipe } from '@nestjs/mongoose';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import type { AuthUser } from '../auth/jwt.strategy.js';
+import { CreateTodoDto } from './dto/create-todo.dto.js';
+import { UpdateTodoDto } from './dto/update-todo.dto.js';
+import { Todo } from './todo.schema.js';
+import { TodosService } from './todos.service.js';
+
+@ApiTags('todos')
+@ApiBearerAuth() // 4.5: Swagger marks these routes as needing the bearer token
+@Controller('todos')
+export class TodosController {
+  constructor(private readonly todos: TodosService) {}
+
+  @Post()
+  create(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateTodoDto,
+  ): Promise<Todo> {
+    return this.todos.create(user.id, dto);
+  }
+
+  @Get()
+  findAll(@CurrentUser() user: AuthUser): Promise<Todo[]> {
+    return this.todos.findAll(user.id);
+  }
+
+  @Get(':id')
+  findOne(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<Todo> {
+    return this.todos.findOne(user.id, id);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: string,
+    @Body() dto: UpdateTodoDto,
+  ): Promise<Todo> {
+    return this.todos.update(user.id, id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseObjectIdPipe) id: string,
+  ): Promise<void> {
+    return this.todos.remove(user.id, id);
+  }
 }
 ```
 
+There is no annotation that turns the guard on: with `APP_GUARD` every route is protected by default.
+The annotations only make exceptions or read the result:
+
+| Annotation | Goes on | Does |
+|---|---|---|
+| `@Public()` | a handler or a controller class | lets the request through without a token (4.3) |
+| `@CurrentUser()` | a handler parameter | gives the handler `{ id, email }` from the verified token, i.e. `req.user` (4.4) |
+| `@ApiBearerAuth()` | a controller class or a handler | Swagger only: shows a lock and sends the token from "Authorize". It does not protect anything (4.5) |
+
+`@CurrentUser()` on a `@Public()` route gives `undefined`, because the guard skipped the token check.
+
 Someone else's todo id answers `404`, not `403`, so the API does not reveal that the id exists.
+
+Todos created before this step have no `owner`, so no user sees them anymore. Delete them:
+
+```bash
+cd backend && docker compose exec mongo mongosh todos --eval 'db.todos.deleteMany({ owner: { $exists: false } })'
+```
 
 ### 4.5 Swagger: let the UI send the token
 
@@ -400,11 +547,24 @@ const config = new DocumentBuilder()
   .build();
 ```
 
-and `@ApiBearerAuth()` on `TodosController` so the document marks those routes as protected. To try a call
+and `@ApiBearerAuth()` on `TodosController` (see the full controller in 4.4) so the document marks those
+routes as protected. To try a call
 from Swagger UI, paste an ID token (from the browser: `await fetch('/api/auth/session').then(r => r.json())`
 on the frontend prints the session, including `idToken`).
 
 ### 4.6 Regenerate the contract
+
+`npm run openapi` and the e2e test (`test/app.e2e-spec.ts`) boot the whole `AppModule` without reading
+`.env`, so the strategy's check from 4.2 stops them. Neither one verifies a token, so give them
+placeholders. Add this to `src/openapi.ts` before `NestFactory.create`, and to the e2e test after its
+imports:
+
+```ts
+// The JwtStrategy needs these to construct; no token is verified here, so placeholders are fine.
+process.env.OIDC_ISSUER ??= 'https://accounts.google.com';
+process.env.OIDC_AUDIENCE ??= 'todos-api';
+process.env.OIDC_JWKS_URI ??= 'https://www.googleapis.com/oauth2/v3/certs';
+```
 
 The OpenAPI document now contains a `securitySchemes.bearer` entry and `owner` on `Todo`:
 
@@ -418,6 +578,7 @@ point of step 3.6.
 
 ## 5. Checklist
 
+- `curl localhost:3001/` → `200` (public health check).
 - `curl localhost:3001/todos` → `401`.
 - `curl -H "Authorization: Bearer <id token>" localhost:3001/todos` → `200` with only that user's todos.
 - A token with the wrong audience (another Google client id) → `401`.
@@ -434,4 +595,20 @@ point of step 3.6.
 | backend | `OIDC_ISSUER` | `https://accounts.google.com` |
 | backend | `OIDC_AUDIENCE` | the Google client id |
 | backend | `OIDC_JWKS_URI` | `https://www.googleapis.com/oauth2/v3/certs` |
+| backend | `PORT` | `3001` (the default 3000 collides with Next.js) |
 | backend | `MONGO_URI` | `mongodb://localhost:27017/todos` (default) |
+
+Frontend variables go in `frontend/.env.local`, backend variables in `backend/.env`. Both files are
+gitignored.
+
+## 7. Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| API stops at startup with `Set OIDC_ISSUER, OIDC_AUDIENCE and OIDC_JWKS_URI` | `backend/.env` is missing, has other variable names (e.g. `AUTH0_*` from another guide), or was not loaded: check the `import './env.js'` from 4.1 and start the API from `backend/`. |
+| Google shows `Error 400: redirect_uri_mismatch` | The redirect URI from step 2 is not registered, or differs in any character. It must be exactly `http://localhost:3000/api/auth/callback/google` (http, port 3000, no trailing slash). Changes in Google Cloud Console can take a few minutes. |
+| The page is blank or reloads in a loop | The `next dev` server was started before installing `next-auth` or before a branch switch. Stop it and run `npm run dev` again. |
+| Signed in, but every call answers `401` | The ID token expired (one hour, see the caveat in 3.7): sign out and in again. If it fails right after signing in, `OIDC_AUDIENCE` differs from `AUTH_GOOGLE_ID`. |
+| Signed in, the list is empty although the database has todos | Those todos were created before login existed and have no `owner` (see 4.4). |
+| API fails with `EADDRINUSE` on port 3000, or the frontend cannot reach it | `PORT=3001` is missing from `backend/.env`. |
+| Signed in, but calls to `localhost:3000/todos` answer `404` | `NEXT_PUBLIC_API_URL` points at Next.js (3000) instead of the API (3001). Fix it in `frontend/.env.local` and restart `npm run dev`: `NEXT_PUBLIC_*` values are built into the browser code. |

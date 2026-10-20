@@ -22,3 +22,6 @@ cd backend && docker compose up -d && PORT=3001 npm run start:dev
 # frontend (http://localhost:3000)
 cd frontend && npm run dev
 ```
+
+Once `OAUTH.md` is applied, both apps also need their variables: `backend/.env` and `frontend/.env.local`,
+listed in `OAUTH.md` section 6. If something fails, see its section 7.
