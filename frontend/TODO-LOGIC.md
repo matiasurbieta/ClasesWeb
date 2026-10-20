@@ -1,5 +1,7 @@
 # Todo app: adding the logic step by step
 
+*Versión en español: [TODO-LOGIC.es.md](TODO-LOGIC.es.md)*
+
 > **Branch note:** `full-apps` (and `main`) already contain the result of every step below (`src/lib/todos.ts` and the final
 > `src/app/page.tsx`). To follow the guide yourself start from the `initial` branch: `git checkout initial`.
 
