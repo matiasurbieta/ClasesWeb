@@ -1,5 +1,7 @@
 # Todos API: registering the entity and exposing it, step by step
 
+*Versión en español: [TODO-API.es.md](TODO-API.es.md)*
+
 Stack: NestJS 12, MongoDB via Mongoose 9 (`@nestjs/mongoose`), Swagger/OpenAPI (`@nestjs/swagger` plus its
 CLI plugin, so the document is generated from the TypeScript types), input validation with `class-validator`.
 
