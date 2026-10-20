@@ -23,6 +23,10 @@ export class Todo {
   @Prop({ default: false })
   done: boolean;
 
+  /** Identity provider user id (`sub` claim). Set by the server from the token, not by the client. */
+  @Prop({ required: true, index: true })
+  owner: string;
+
   createdAt: Date;
   updatedAt: Date;
 }

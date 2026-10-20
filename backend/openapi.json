@@ -48,6 +48,11 @@
             }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "todos"
         ]
@@ -70,6 +75,11 @@
             }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "todos"
         ]
@@ -100,6 +110,11 @@
             }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "todos"
         ]
@@ -138,6 +153,11 @@
             }
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "todos"
         ]
@@ -159,6 +179,11 @@
             "description": ""
           }
         },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
         "tags": [
           "todos"
         ]
@@ -174,6 +199,13 @@
   "tags": [],
   "servers": [],
   "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
     "schemas": {
       "CreateTodoDto": {
         "type": "object",
@@ -233,6 +265,10 @@
           "done": {
             "type": "boolean"
           },
+          "owner": {
+            "type": "string",
+            "description": "Identity provider user id (`sub` claim). Set by the server from the token, not by the client."
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -247,6 +283,7 @@
           "name",
           "priority",
           "done",
+          "owner",
           "createdAt",
           "updatedAt"
         ]

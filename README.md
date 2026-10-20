@@ -12,6 +12,7 @@ Teaching project with two apps:
 | `initial` | Starting point: UI components with no state, empty page, complete backend API. | `frontend/TODO-LOGIC.md`, `backend/TODO-API.md` |
 | `full-apps` | The frontend guide applied (todos in an in-memory array, create, toggle, edit) plus the OpenAPI client generation set up. | `frontend/API-CLIENT.md` |
 | `full-api` | The frontend talks to the backend through the generated client, plus a how-to for adding OAuth login to both apps. | `OAUTH.md` |
+| `full-google-auth` | `OAUTH.md` applied with Google as the identity provider: login in the frontend, ID-token verification and per-user todos in the backend. | `OAUTH.md` |
 
 ## Run
 

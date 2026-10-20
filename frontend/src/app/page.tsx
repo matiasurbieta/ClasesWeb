@@ -1,5 +1,6 @@
 "use client";
 
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { TodoForm } from "@/components/todo-form";
 import { TodoList } from "@/components/todo-list";
@@ -20,13 +21,16 @@ function toTodo(t: ApiTodo): Todo {
 }
 
 export default function Home() {
+  const { data: session, status } = useSession();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Todo>();
 
+  // Load the todos once the user is signed in (the API answers 401 otherwise).
   useEffect(() => {
+    if (status !== "authenticated") return;
     api.GET("/todos").then(({ data }) => setTodos((data ?? []).map(toTodo)));
-  }, []);
+  }, [status]);
 
   function openNew() {
     setEditing(undefined);
@@ -63,11 +67,31 @@ export default function Home() {
     if (data) replace(data);
   }
 
+  if (status === "loading") return null;
+
+  if (!session) {
+    return (
+      <main className="mx-auto grid w-full max-w-3xl gap-4 p-8">
+        <h1 className="text-2xl font-semibold">Todos</h1>
+        <p className="text-muted-foreground">Sign in to see your todos.</p>
+        <Button className="w-fit" onClick={() => signIn("google")}>
+          Sign in with Google
+        </Button>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto grid w-full max-w-3xl gap-8 p-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Todos</h1>
-        <Button onClick={openNew}>New todo</Button>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">{session.user?.email}</span>
+          <Button variant="outline" onClick={() => signOut()}>
+            Sign out
+          </Button>
+          <Button onClick={openNew}>New todo</Button>
+        </div>
       </div>
       <TodoList todos={todos} onEdit={openEdit} onToggle={handleToggle} />
       <TodoForm open={open} onOpenChange={setOpen} todo={editing} onSubmit={handleSubmit} />

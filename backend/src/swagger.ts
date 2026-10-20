@@ -6,6 +6,7 @@ export function createOpenApiDocument(app: INestApplication) {
     .setTitle('Todos API')
     .setDescription('CRUD API for the Todo entity, persisted in MongoDB')
     .setVersion('1.0')
+    .addBearerAuth() // "Authorize" button in Swagger UI and the `bearer` security scheme
     .build();
   return SwaggerModule.createDocument(app, config);
 }
