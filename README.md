@@ -9,11 +9,15 @@ Teaching project with two apps:
 
 ## Branches
 
+Each branch is one stage of the course. `main` has the same code as `full-apps`.
+
 | Branch | What it contains | Guide to follow |
 |---|---|---|
 | `initial` | Starting point: UI components with no state, empty page, complete backend API. | `frontend/TODO-LOGIC.md`, `backend/TODO-API.md` |
 | `full-apps` | The frontend guide applied (todos in an in-memory array, create, toggle, edit) plus the OpenAPI client generation set up. | `frontend/API-CLIENT.md` |
 | `full-api` | The frontend talks to the backend through the generated client, plus a how-to for adding OAuth login to both apps. | `OAUTH.md` |
+| `full-google-auth` | `OAUTH.md` applied with Google as the identity provider: login in the frontend, ID-token verification and per-user todos in the backend. | `OAUTH.md` |
+| `full-auth0` | `OAUTH.md` applied with Auth0 as the identity provider: login in the frontend, bearer-token verification and per-user todos in the backend. | `AUTH0.md` |
 
 ## Run
 
@@ -24,3 +28,6 @@ cd backend && docker compose up -d && PORT=3001 npm run start:dev
 # frontend (http://localhost:3000)
 cd frontend && npm run dev
 ```
+
+On `full-google-auth` and `full-auth0` both apps also need their variables in `backend/.env` and
+`frontend/.env.local`: see `OAUTH.md` section 6 or `AUTH0.md` on that branch.
